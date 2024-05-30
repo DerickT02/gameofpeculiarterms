@@ -1,8 +1,8 @@
 'use client'
 
 import Image from "next/image";
-import socket from "./socket";
-import { useContext, useEffect, useState } from "react";
+import socketconn from "./socket";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createContext } from "react";
 import { useGlobalContext } from "./Context/store";
@@ -12,20 +12,7 @@ import { useGlobalContext } from "./Context/store";
 
 export default function HomePage() {
   const [serverMessage, setServerMessage] = useState("")
-  const gameContext = useGlobalContext();
-  useEffect(() => {
-    socket.on("sayHello", (args: string) => {
-      setServerMessage(args)
-      console.log(serverMessage)
-    })
-
-    socket.on("sayBye", (args: string) => {
-      setServerMessage(args)
-      console.log(serverMessage)
-    })
-
-  }, [serverMessage])
-
+  
  
 
 
