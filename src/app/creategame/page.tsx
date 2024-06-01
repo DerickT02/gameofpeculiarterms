@@ -19,7 +19,7 @@ export default function Page() {
     const joinRoom = () => {
       gameContext?.setCurrentPlayer(userName)
       socket.emit("create-room", {username: userName, roomID: roomID, maxPlayers: maxPlayers, winningScore: winningScore})
-      router.push(`${roomID}/lobby`)
+      router.push(`${roomID}/lobby/${userName}`)
     }
     
     const changeUserName = (e: any) => {
