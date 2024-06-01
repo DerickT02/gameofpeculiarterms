@@ -36,7 +36,7 @@ export default function Page() {
         gameContext?.setCurrentPlayer(userName)
 
         socketconn.emit("join-room", {username: userName, roomID: roomID})
-        router.push(`${roomID}/lobby`)
+        router.push(`${roomID}/lobby/${userName}`)
 
       })
       
