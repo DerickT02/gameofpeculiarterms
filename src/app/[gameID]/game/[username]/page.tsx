@@ -10,10 +10,12 @@ export default function Page({ params }: { params: { gameID: string, username: s
     const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
     const [players, setPlayers] = useState<any[]>([]);
     const [gameOver, setGameOver] = useState(false);
-    const [promptWritten, setIsPromptWritten] = useState(false)
-    const [promptGenerated, setPromptGenerated] = useState(false)
-    const [prompt, setPrompt] = useState("")
-    const [promptImage, setPromptImage] = useState("")
+    const [promptWritten, setIsPromptWritten] = useState(false);
+    const [promptGenerated, setPromptGenerated] = useState(false);
+    const [prompt, setPrompt] = useState("");
+    const [promptImage, setPromptImage] = useState("");
+    const [responses, setResponses] = useState<any[]>([]);
+    const [imageLoading, setImageLoading] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -25,6 +27,9 @@ export default function Page({ params }: { params: { gameID: string, username: s
 
         // Listen for turn changes
         socketconn.on("turn_change", () => {
+            setPromptImage("");
+            setIsPromptWritten(false);
+            setPromptGenerated(false);
             setCurrentPlayerIndex(prevIndex => {
                 const newIndex = (prevIndex + 1) % players.length;
                 setCurrentPlayer(players[newIndex].username);
@@ -33,23 +38,29 @@ export default function Page({ params }: { params: { gameID: string, username: s
         });
 
         socketconn.on("prompt_generated", (data) => {
-            console.log(data.promptImage)
-            setPromptGenerated(true)
-            
-            setPromptImage(data.promptImage)
-        })
+            setPromptGenerated(true);
+            setImageLoading(false);
+            setPromptImage(data.promptImage);
+        });
+
+        socketconn.on("response_given", (data: any) => {
+            console.log(data)
+            setResponses(prev => [...prev, data]);
+        });
 
         return () => {
-            console.log("Component is unmounting...");
-            socketconn.off("turn_change"); 
-            socketconn.off("prompt_generated")
+            socketconn.off("turn_change");
+            socketconn.off("prompt_generated");
+            socketconn.off("response_given");
         };
     }, [params.gameID, players.length]);
 
     const generatePrompt = () => {
-        setIsPromptWritten(true)
-        socketconn.emit("generate_prompt", {username: params.username, prompt: prompt, gameId: params.gameID})
-    }
+        setIsPromptWritten(true);
+        setImageLoading(true);
+        setPrompt("")
+        socketconn.emit("generate_prompt", { username: params.username, prompt: prompt, gameId: params.gameID });
+    };
 
     const nextPlayer = () => {
         socketconn.emit("player_change", { gameId: params.gameID });
@@ -64,46 +75,51 @@ export default function Page({ params }: { params: { gameID: string, username: s
         <div>
             <button onClick={leaveGame}>Leave game</button>
             <br />
-            {!gameOver ?  
-            <>
-            {currentPlayer === params.username ? (
-               <>
-                {!promptWritten ? 
-                <> 
-                    <h1>It's your turn!!</h1>
-                    
-                    
-                    <input placeholder="Write a prompt" value = {prompt} onChange = {(e) => {setPrompt(e.target.value)}}></input>
-                    <button onClick = {generatePrompt}>Generate Prompt</button>
-                </> 
-                : 
-                <> <button onClick={nextPlayer}>Next Player</button></>
-                }
-       
-               </>
-                
-                ) : (
-               <>
-               {!promptGenerated ? <>
-               <h3>Waiting for {currentPlayer} to generate a prompt</h3> 
-               <h2>What will {params.username} say???? (This may take a few minutes. Please be patient)</h2></> : 
-               <> 
-                
-                <WriteResponse imageUrl={promptImage} username={params.username} gameID={params.gameID} />
-               </>
-               }
-               </>
-                )
-            }
-            </> : 
-            <>
-                <h1>Game over</h1>
-                <button onClick = {leaveGame}>Exit</button>
-            </>
-            
-            }
-            
-            
+            {!gameOver ? (
+                <>
+                    {currentPlayer === params.username ? (
+                        <>
+                            {!promptWritten ? (
+                                <>
+                                    <h1>It's your turn!!</h1>
+                                    <input placeholder="Write a prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+                                    <button onClick={generatePrompt}>Generate Prompt</button>
+                                </>
+                            ) : (
+                                <>
+                                    {imageLoading ? (
+                                        "Loading image"
+                                    ) : (
+                                        <>
+                                            <img src={promptImage} alt="Prompt" />
+                                            <button onClick={nextPlayer}>Next Player</button>
+                                            {responses.map((value, index) => (
+                                                <h2 key={index}>{value.response}</h2>
+                                            ))}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            {!promptGenerated ? (
+                                <>
+                                    <h3>Waiting for {currentPlayer} to generate a prompt</h3>
+                                    <h2>What will {params.username} say???? (This may take a few minutes. Please be patient)</h2>
+                                </>
+                            ) : (
+                                <WriteResponse imageUrl={promptImage} username={params.username} gameID={params.gameID} />
+                            )}
+                        </>
+                    )}
+                </>
+            ) : (
+                <>
+                    <h1>Game over</h1>
+                    <button onClick={leaveGame}>Exit</button>
+                </>
+            )}
         </div>
     );
 }
