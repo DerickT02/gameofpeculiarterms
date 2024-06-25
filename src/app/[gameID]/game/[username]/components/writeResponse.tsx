@@ -4,18 +4,28 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import socketconn from "@/app/socket";
 
+
 interface ResponseData {
     imageUrl: string;
     username: string;
-    gameID: string
+    gameID: string;
+   
 }
 
 export default function WriteResponse({imageUrl, username, gameID}: ResponseData){
     const [prompt, setPrompt] = useState("")
+    const [currentScore, setCurrentScore] = useState(0)
 
+    useEffect(() => {
+       axios.get(`http://localhost:1001/gptgame/room/${gameID}/${username}`).then(res => {
+        setCurrentScore(res.data.playerScore)
+        console.log("Can i see my score", currentScore)
+       }) 
+    }, [])
+   
     const submitResponse = () => {
         
-        socketconn.emit("response_sent", {gameID: gameID, prompt: prompt, username: username}, () => {
+        socketconn.emit("response_sent", {gameID: gameID, prompt: prompt, username: username, currentScore: currentScore}, () => {
             console.log("event emitted")
         })
     }
