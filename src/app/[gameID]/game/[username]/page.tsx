@@ -4,9 +4,11 @@ import axios from "axios";
 import socketconn from "@/app/socket";
 import { useRouter } from "next/navigation";
 import WriteResponse from "./components/writeResponse";
+import PromptResponse from "./components/promptResponses";
 
 export default function Page({ params }: { params: { gameID: string, username: string } }) {
     const [currentPlayer, setCurrentPlayer] = useState("");
+    const [currentScore, setCurrentScore] = useState(0);
     const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
     const [players, setPlayers] = useState<any[]>([]);
     const [gameOver, setGameOver] = useState(false);
@@ -16,20 +18,26 @@ export default function Page({ params }: { params: { gameID: string, username: s
     const [promptImage, setPromptImage] = useState("");
     const [responses, setResponses] = useState<any[]>([]);
     const [imageLoading, setImageLoading] = useState(false);
+    const [winningScore, setWinningScore] = useState(0)
+    const [winner, setWinner] = useState("")
     const router = useRouter();
+    const [scoreboard, setScoreboard] = useState({})
 
     useEffect(() => {
         // Fetch the initial game state
         axios.get(`http://localhost:1001/gptgame/room/${params.gameID}`).then(res => {
             setPlayers(res.data.players);
             setCurrentPlayer(res.data.players[0].username);
-        });
+            setWinningScore(res.data.winningScore)
+            setCurrentScore(res.data.scores[params.username])
+            });
 
         // Listen for turn changes
         socketconn.on("turn_change", () => {
             setPromptImage("");
             setIsPromptWritten(false);
             setPromptGenerated(false);
+            setResponses([])
             setCurrentPlayerIndex(prevIndex => {
                 const newIndex = (prevIndex + 1) % players.length;
                 setCurrentPlayer(players[newIndex].username);
@@ -45,13 +53,31 @@ export default function Page({ params }: { params: { gameID: string, username: s
 
         socketconn.on("response_given", (data: any) => {
             console.log(data)
-            setResponses(prev => [...prev, data]);
+            setResponses(prev => [...prev, data])
+
+           
         });
+
+        socketconn.on("score_updated", (data) => {
+            if(params.username == data.score){
+                console.log("Event triggered")
+                setCurrentScore(data.score)
+            }
+    
+            console.log("current score", currentScore)
+        })
+
+        socketconn.on("game_over", data => {
+            setGameOver(true)
+            setWinner(data.winner)
+        })
 
         return () => {
             socketconn.off("turn_change");
             socketconn.off("prompt_generated");
             socketconn.off("response_given");
+            socketconn.off("score_updated")
+            socketconn.off("game_over")
         };
     }, [params.gameID, players.length]);
 
@@ -94,9 +120,9 @@ export default function Page({ params }: { params: { gameID: string, username: s
                                             <img src={promptImage} alt="Prompt" />
                                             <button onClick={nextPlayer}>Next Player</button>
                                             {responses.map((value, index) => (
-                                                <h2 key={index}>{value.response}</h2>
+                                                <PromptResponse username={value.username} currentScore={value.score} response={value.response} gameID = {params.gameID}/>
                                             ))}
-                                        </>
+                                        </> 
                                     )}
                                 </>
                             )}
@@ -109,7 +135,8 @@ export default function Page({ params }: { params: { gameID: string, username: s
                                     <h2>What will {params.username} say???? (This may take a few minutes. Please be patient)</h2>
                                 </>
                             ) : (
-                                <WriteResponse imageUrl={promptImage} username={params.username} gameID={params.gameID} />
+                                /*set the score equal to the current score by fetching use score from the Map */
+                                <WriteResponse imageUrl={promptImage} username={params.username} gameID={params.gameID}/>
                             )}
                         </>
                     )}

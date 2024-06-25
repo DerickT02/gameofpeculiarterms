@@ -18,17 +18,15 @@ export default function Page({ params }: { params: { gameID: string, username: s
         setLocalUsername(storedUsername);
         localStorage.setItem(params.username, storedUsername);
 
-        const fetchGameRoom = async () => {
-            try {
-                const res = await axios.get(`http://localhost:1001/gptgame/room/${params.gameID}`);
-                setPlayers(res.data.players);
-                setCreator(res.data.creator.username);
-            } catch (error) {
-                console.error("Error fetching game room data:", error);
-            }
-        };
+      
+                axios.get(`http://localhost:1001/gptgame/room/${params.gameID}`).then(res => {
+                    setPlayers(res.data.players);
+                    setCreator(res.data.creator.username);
+        
+                });
+                
 
-        fetchGameRoom();
+   
 
         const handlePlayerJoined = (res: any) => {
             setPlayers(res.players);
